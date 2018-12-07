@@ -3,6 +3,7 @@
     using System;
     using System.Configuration;
     using Acme.Commands;
+    using Acme.Events;
     using Castle.Windsor;
     using NServiceBus;
     using NServiceBus.Persistence;
@@ -99,7 +100,26 @@ Ctrl+C to exit.");
 
     public class DoFooHandler : IHandleMessages<DoFoo>
     {
-        public void Handle(DoFoo message) => Console.WriteLine($"Received {message}");
+        private readonly IBus bus;
+
+        public DoFooHandler(IBus bus) => this.bus = bus;
+
+        public void Handle(DoFoo message)
+        {
+            Console.WriteLine($"Received {message}");
+
+            var fooHappened = new FooHappened { Bar = message.Bar, TimestampUtc = message.TimestampUtc };
+            Console.WriteLine($"Publishing {fooHappened}...");
+            this.bus.Publish(fooHappened);
+        }
+    }
+
+    public class FooHappenedHandler : IHandleMessages<FooHappened>
+    {
+        public void Handle(FooHappened message)
+        {
+            Console.WriteLine($"Received {message}");
+        }
     }
 }
 
@@ -109,6 +129,20 @@ namespace Acme.Commands
     using System;
 
     public class DoFoo
+    {
+        public DateTimeOffset TimestampUtc { get; set; }
+
+        public string Bar { get; set; }
+
+        public override string ToString() => $"{nameof(Bar)}: {Bar}, {nameof(TimestampUtc)}: {TimestampUtc} (Ticks: {TimestampUtc.Ticks})";
+    }
+}
+
+namespace Acme.Events
+{
+    using System;
+
+    public class FooHappened
     {
         public DateTimeOffset TimestampUtc { get; set; }
 
